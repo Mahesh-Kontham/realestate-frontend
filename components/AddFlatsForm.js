@@ -51,7 +51,8 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
     alert("Failed to add flat to Supabase.");
     return;
   }
-
+    alert("✅ Flat added successfully!");
+    onFlatAdded();
   // ✅ Step 4: Sync to Edge Function
   try {
     const { data: { session } } = await supabase.auth.getSession();

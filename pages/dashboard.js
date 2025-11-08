@@ -282,7 +282,7 @@ export default function Dashboard() {
                 onClick={() => router.push(`/tenants/${flat.flat_id}`)}>
               <h3>{flat.apartment_name}</h3>
               {/* 🏠 Flat Number */}
-              <p>🏠 Flat Number: {flat.FlatNumber || "—"}</p>
+              <p>🏠 Flat Number: {flat.flat_id || "—"}</p>
 
               {/* 💰 Rent */}
               <p>💰 Rent: ₹{flat.rent_amount || 0}</p>
@@ -290,8 +290,8 @@ export default function Dashboard() {
               {/* 📅 Due Date */}
               <p className="mt-2">
                 📅 Due Date:{" "}
-                {flat.Due_Date
-                  ? new Date(flat.Due_Date).toLocaleDateString("en-IN", {
+                {flat.due_date
+                  ? new Date(flat.due_date).toLocaleDateString("en-IN", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
