@@ -73,8 +73,8 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
 
     if (!response.ok) {
       const err = await response.text();
-      console.error("Error syncing to Google Sheet:", err);
-      alert("Failed to sync flat with Google Sheet.");
+      // console.error("Error syncing to Google Sheet:", err);
+      // alert("Failed to sync flat with Google Sheet.");
       return;
     }
 
