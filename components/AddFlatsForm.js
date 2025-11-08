@@ -8,7 +8,7 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
     FlatNumber: "",
     owner_email: "",
     rent_amount: "",
-    Due_Date: "",
+    due_date: "",
   });
 
   // Handle input change
@@ -41,7 +41,7 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
     FlatNumber: formData.FlatNumber ? parseInt(formData.FlatNumber) : null, 
     owner_email: user.email, // ✅ Now user is defined
     rent_amount: formData.rent_amount,
-    Due_Date: formData.Due_Date,
+    due_date: formData.due_date,
   };
 
   // ✅ Step 3: Insert into Supabase
@@ -112,10 +112,10 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
             onChange={handleChange}
           />
           <input
-            name="Due_Date"
+            name="due_date"
             type="date"
             placeholder="Due Date"
-            value={formData.Due_Date || ""}
+            value={formData.due_date || ""}
             onChange={handleChange}
           />
 
