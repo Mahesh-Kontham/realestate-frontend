@@ -1,7 +1,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
+import { createClient } from '@supabase/supabase-js';
 
+export const Access = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function Login(){
   const[email,setEmail]=useState("");
@@ -56,6 +61,13 @@ export default function Login(){
       >
         Sign In
       </button>
+          <p style={{ textAlign: "center", marginTop: "10px" }}>
+              Don't have an account?{" "}
+          <a href="/signup" style={{ color: "#007bff", cursor: "pointer" }}>
+             Sign Up
+      </a>
+    </p>
+
     </div>
   </div>
 );
