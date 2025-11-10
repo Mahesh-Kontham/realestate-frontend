@@ -21,7 +21,7 @@ export default function TenantExitWizard() {
     console.log("🔍 Fetching tenancies...");
     const { data, error } = await supabase
       .from("tenancies")
-      .select("id, tenant_name, flat_id,deposit_amount, status");
+      .select("id, tenant_name, flat_id,deposit_amount, is_active");
 
     if (error) {
       console.error("❌ Supabase fetch error:", error);
