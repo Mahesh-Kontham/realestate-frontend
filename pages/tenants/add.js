@@ -7,17 +7,20 @@ export default function AddTenant() {
     flat_id: "",
     tenant_name: "",
     occupation_type: "",
-    salary: "",
+    company_name: "",
     family_status: "",
     gender: "",
     age: "",
     deposit_amount: "",
     aadharFile: null,
     panFile: null,
+    offerLetterFile: null, // 🆕 Added for offer letter / company ID
   });
 
+  const [uploading, setUploading] = useState(false);
   const router = useRouter();
 
+  // ✅ Handle input change
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     setFormData({
@@ -26,62 +29,72 @@ export default function AddTenant() {
     });
   };
 
-  // 🔼 Upload file to Supabase Edge Function → Google Drive
-    const uploadFile = async (file) => {
-      // Get current session token from Supabase
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+  // ✅ Upload file to Supabase Storage bucket → tenant-docs/{folder}
+  const uploadFile = async (file, folder) => {
+    try {
+      const filePath = `${folder}/${Date.now()}_${file.name}`;
 
-      const form = new FormData();
-      form.append("file", file);
+      const { data, error } = await supabase.storage
+        .from("tenant-docs")
+        .upload(filePath, file);
 
-      const res = await fetch(
-        "https://rsqvusfanywhzqryzqck.supabase.co/functions/v1/upload-to-drive",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`, // ✅ send user's access token
-          },
-          body: form,
-        }
-      );
+      if (error) throw error;
 
-      if (!res.ok) {
-        console.error("❌ Upload failed:", await res.text());
-        throw new Error("Upload failed");
-      }
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("tenant-docs").getPublicUrl(filePath);
 
-      const data = await res.json();
-      return `https://drive.google.com/file/d/${data.fileId}/view`;
-    };
+      console.log(`✅ Uploaded ${folder} file:`, publicUrl);
+      return publicUrl;
+    } catch (err) {
+      console.error("❌ Upload failed:", err.message);
+      alert(`Upload failed: ${err.message}`);
+      return null;
+    }
+  };
 
-
+  // ✅ Handle Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.flat_id || !formData.tenant_name || !formData.deposit_amount) {
-      alert("Please fill all required fields including deposit amount.");
+      alert("⚠️ Please fill all required fields including deposit amount.");
       return;
     }
 
+    // 🧠 Validation for “Working” tenants
+    if (formData.occupation_type === "Working" && !formData.offerLetterFile) {
+      alert("⚠️ Please upload an Offer Letter or Company ID for Working tenants.");
+      return;
+    }
+
+    setUploading(true);
     let aadharUrl = null;
     let panUrl = null;
+    let offerLetterUrl = null;
 
     try {
-      if (formData.aadharFile) aadharUrl = await uploadFile(formData.aadharFile);
-      if (formData.panFile) panUrl = await uploadFile(formData.panFile);
+      if (formData.aadharFile)
+        aadharUrl = await uploadFile(formData.aadharFile, "aadhar");
+      if (formData.panFile)
+        panUrl = await uploadFile(formData.panFile, "pan");
+      if (formData.offerLetterFile)
+        offerLetterUrl = await uploadFile(formData.offerLetterFile, "work-docs"); // 🆕 Folder for working docs
     } catch (err) {
-      console.error("❌ Error uploading file:", err);
+      console.error("❌ File upload error:", err);
       alert("File upload failed!");
+      setUploading(false);
       return;
     }
 
+    // ✅ Insert into Supabase
     const { data, error } = await supabase.from("tenancies").insert([
       {
         flat_id: formData.flat_id,
         tenant_name: formData.tenant_name,
         occupation_type: formData.occupation_type,
-        salary: formData.occupation_type === "Working" ? formData.salary : null,
+        company_name:
+          formData.occupation_type === "Working" ? formData.company_name : null,
         family_status: formData.family_status,
         gender:
           formData.family_status === "Bachelors" ? formData.gender : null,
@@ -89,13 +102,16 @@ export default function AddTenant() {
         deposit_amount: formData.deposit_amount,
         aadhar_url: aadharUrl,
         pan_url: panUrl,
-        start_date: new Date().toISOString(), // default start date
+        offer_letter_url: offerLetterUrl, // 🆕 saved in DB
+        start_date: new Date().toISOString(),
         is_active: true,
       },
     ]);
 
+    setUploading(false);
+
     if (error) {
-      console.error("❌ Error adding tenant:", error);
+      console.error("❌ Supabase error:", error);
       alert("Failed to add tenant.");
     } else {
       alert("✅ Tenant added successfully!");
@@ -111,7 +127,7 @@ export default function AddTenant() {
         <input
           type="text"
           name="flat_id"
-          placeholder="Flat ID (e.g. FLAT-001)"
+          placeholder="Flat ID (e.g. sunshine-101)"
           value={formData.flat_id}
           onChange={handleChange}
           required
@@ -135,53 +151,32 @@ export default function AddTenant() {
           value={formData.age}
           onChange={(e) => {
             const value = e.target.value;
-            // Prevent negative or zero numbers
-            if (value >= 0) {
-              setFormData({ ...formData, age: value });
-            }
+            if (value >= 0) setFormData({ ...formData, age: value });
           }}
           onKeyDown={(e) => {
-            if (e.key === "-" || e.key === "+") {
-              e.preventDefault(); // stop typing negative/positive signs
-            }
+            if (["-", "+"].includes(e.key)) e.preventDefault();
           }}
           min="1"
-          step="1"
           required
-          style={{
-            ...styles.input,
-            borderColor: "#22c55e",
-            backgroundColor: "#f9fffa",
-          }}
+          style={styles.input}
         />
 
-       <input
+        <input
           type="number"
           name="deposit_amount"
           placeholder="💰 Deposit Amount"
           value={formData.deposit_amount}
           onChange={(e) => {
             const value = e.target.value;
-            // Prevent negative or zero numbers
-            if (value >= 0) {
-              setFormData({ ...formData, deposit_amount: value });
-            }
+            if (value >= 0) setFormData({ ...formData, deposit_amount: value });
           }}
           onKeyDown={(e) => {
-            if (e.key === "-" || e.key === "+") {
-              e.preventDefault(); // stop typing negative/positive signs
-            }
+            if (["-", "+"].includes(e.key)) e.preventDefault();
           }}
           min="1"
-          step="1"
           required
-          style={{
-            ...styles.input,
-            borderColor: "#22c55e",
-            backgroundColor: "#f9fffa",
-          }}
+          style={styles.input}
         />
-
 
         {/* Occupation Dropdown */}
         <label>Occupation:</label>
@@ -197,16 +192,29 @@ export default function AddTenant() {
           <option value="Business">Business</option>
         </select>
 
-        {/* Show salary if Working */}
+        {/* Company details and Offer Letter */}
         {formData.occupation_type === "Working" && (
-          <input
-            type="number"
-            name="salary"
-            placeholder="Monthly Salary"
-            value={formData.salary}
-            onChange={handleChange}
-            style={styles.input}
-          />
+          <>
+            <input
+              type="text"
+              name="company_name"
+              placeholder="Company Name"
+              value={formData.company_name}
+              onChange={handleChange}
+              style={styles.input}
+              required
+            />
+
+            <label>Upload Offer Letter or Company ID:</label>
+            <input
+              type="file"
+              name="offerLetterFile"
+              accept="image/*,.pdf"
+              onChange={handleChange}
+              style={styles.fileInput}
+              required
+            />
+          </>
         )}
 
         {/* Family/Bachelors */}
@@ -223,7 +231,7 @@ export default function AddTenant() {
           <option value="Bachelors">Bachelors</option>
         </select>
 
-        {/* Show gender if Bachelors */}
+        {/* Gender (only for Bachelors) */}
         {formData.family_status === "Bachelors" && (
           <select
             name="gender"
@@ -239,7 +247,7 @@ export default function AddTenant() {
         )}
 
         {/* File Uploads */}
-        <label>Aadhar Upload:</label>
+        <label>Aadhaar Upload:</label>
         <input
           type="file"
           name="aadharFile"
@@ -257,8 +265,8 @@ export default function AddTenant() {
           style={styles.fileInput}
         />
 
-        <button type="submit" style={styles.button}>
-          Add Tenant
+        <button type="submit" style={styles.button} disabled={uploading}>
+          {uploading ? "Uploading..." : "Add Tenant"}
         </button>
       </form>
 

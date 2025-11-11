@@ -20,10 +20,15 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.apartment_name) {
-      alert("Please fill apartment name");
-      return;
-    }
+  if (!formData.apartment_name || !formData.FlatNumber) {
+    alert("⚠️ Please fill in all required fields");
+    return;
+  }
+
+  if (isNaN(Number(formData.FlatNumber))) {
+    alert("⚠️ Flat Number must be numeric only");
+    return;
+  }
 
     // ✅ Get logged-in user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -32,16 +37,22 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
       console.error("User not found or not logged in:", userError);
       return;
     }
-
+   const generateFlatId = (apartmentName, flatNumber) => {
+  const cleanName = apartmentName.trim().toLowerCase().replace(/\s+/g, "-");
+  return `${cleanName}-${flatNumber}`;
+      };
     // ✅ Prepare flat object
-    const flat = {
-      flat_id: `flat-${String(Date.now()).slice(-4)}`,
-      apartment_name: formData.apartment_name,
-      FlatNumber: formData.FlatNumber ? parseInt(formData.FlatNumber) : null,
-      owner_email: user.email, // use logged-in user's email
-      rent_amount: formData.rent_amount,
-      due_date: formData.due_date,
-    };
+    // ✅ Prepare flat object
+const flat = {
+  flat_id: generateFlatId(formData.apartment_name, formData.FlatNumber),
+  apartment_name: formData.apartment_name,
+  FlatNumber: formData.FlatNumber ? Number(formData.FlatNumber) : null,
+  rent_amount: formData.rent_amount,
+  owner_email: user.email,
+  due_date: formData.due_date,
+  
+};
+
 
     // ✅ Insert into Supabase
     const { error } = await supabase.from("flats").insert([flat]);
@@ -104,13 +115,33 @@ export default function AddFlatForm({ onClose, onFlatAdded }) {
             onChange={handleChange}
             value={formData.apartment_name}
           />
+                  <label
+            htmlFor="FlatNumber"
+            style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}
+          >
+          </label>
           <input
-            name="FlatNumber"
-            placeholder="Flat Number"
             type="number"
-            onChange={handleChange}
-            value={formData.FlatNumber}
+            id="FlatNumber"
+            name="FlatNumber"
+            placeholder="Enter Flat Number (e.g., 101)"
+            value={formData.FlatNumber || ""}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, ""); // allow digits only
+              setFormData({ ...formData, FlatNumber: value });
+            }}
+            style={{
+              width: "100%",
+              padding: "0px",
+              border: "1px solid #ccc",
+              borderRadius: "0px",
+              fontSize: "16px",
+              marginBottom: "15px",
+            }}
+            required
           />
+
+
           <input
             name="owner_email"
             type="email"

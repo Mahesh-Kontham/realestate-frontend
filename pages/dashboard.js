@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [user, setUser] = useState(null);
+  const [filter, setFilter] = useState("all"); // 🆕 admin filter state: "all" | "filled" | "vacant"
   const router = useRouter();
 
   // ✅ Fetch logged-in user
@@ -25,21 +26,57 @@ export default function Dashboard() {
 
   const isAdmin = user?.email === "admin@realestate.com";
 
-  // ✅ Fetch flats
-  const fetchFlats = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from("flats").select("*");
-    if (error) console.error("Error fetching flats:", error);
-    else {
-      setFlats(data);
-      setFilteredFlats(data); // initialize
-    }
-    setLoading(false);
-  };
+  // 🆕 Fetch flats with optional filter
+    const fetchFlats = async (status = "all") => {
+  setLoading(true);
+  try {
+    let data = [];
 
+    if (status === "filled") {
+      // Get filled flats from the SQL view
+      const { data: filledData, error } = await supabase
+        .from("filled_flats")
+        .select("*");
+      if (error) throw error;
+      data = filledData || [];
+    } else if (status === "vacant") {
+      // Get all flats
+      const { data: allFlats, error: flatsError } = await supabase
+        .from("flats")
+        .select("*");
+      if (flatsError) throw flatsError;
+
+      // Get all filled flats (to exclude them)
+      const { data: filledFlats, error: filledError } = await supabase
+        .from("filled_flats")
+        .select("flat_id");
+      if (filledError) throw filledError;
+
+      const filledIds = (filledFlats || []).map((f) => f.flat_id);
+      data = (allFlats || []).filter((f) => !filledIds.includes(f.flat_id));
+    } else {
+      // Show all flats
+      const { data: allData, error } = await supabase
+        .from("flats")
+        .select("*");
+      if (error) throw error;
+      data = allData || [];
+    }
+
+    setFlats(data);
+    setFilteredFlats(data);
+  } catch (err) {
+    console.error("Error fetching flats:", err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  // fetch when filter changes (and on mount)
   useEffect(() => {
-    fetchFlats();
-  }, []);
+    fetchFlats(filter);
+  }, [filter]);
 
   // ✅ Handle Logout
   const handleLogout = async () => {
@@ -50,16 +87,31 @@ export default function Dashboard() {
 
   // ✅ Handle Search Logic
   useEffect(() => {
-    const filtered = flats.filter((flat) =>
-      flat.apartment_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      flat.flat_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      flat.tenant_name?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      setFilteredFlats(flats);
+      return;
+    }
+
+    const filtered = flats.filter((flat) => {
+      const apt = (flat.apartment_name || "").toString().toLowerCase();
+      const id = (flat.flat_id || "").toString().toLowerCase();
+      // tenant_name might be in tenancies or in flat. We check both.
+      const tenantNamesFromTenancies = (flat.tenancies || [])
+        .map((t) => (t.tenant_name || t.name || "").toString().toLowerCase())
+        .join(" ");
+      const tenantField = (flat.tenant_name || "") .toString().toLowerCase() + " " + tenantNamesFromTenancies;
+
+      return apt.includes(q) || id.includes(q) || tenantField.includes(q);
+    });
     setFilteredFlats(filtered);
   }, [searchQuery, flats]);
 
   // ✅ Handle Payment Update
-  const handleStatusUpdate = async (flatId, currentStatus) => {
+  const handleStatusUpdate = async (e, flatId, currentStatus) => {
+    // prevent card onClick navigation
+    e.stopPropagation();
+
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
@@ -144,7 +196,16 @@ export default function Dashboard() {
         )
       );
 
-      alert(`✅ Status updated to ${newStatus.toUpperCase()} on ${paidDate}`);
+      // update filtered too so UI reflects change immediately
+      setFilteredFlats((prev) =>
+        prev.map((flat) =>
+          flat.flat_id === flatId
+            ? { ...flat, status: newStatus, paid_on: paidDate }
+            : flat
+        )
+      );
+
+      alert(`✅ Status updated to ${newStatus.toUpperCase()}${paidDate ? ` on ${paidDate}` : ""}`);
     } catch (err) {
       console.error("❌ Unexpected error:", err);
       alert("Something went wrong. Check console for details.");
@@ -241,7 +302,71 @@ export default function Dashboard() {
 
       {/* Add Flat Form */}
       {isAdmin && showForm && (
-        <AddFlatsForm onClose={() => setShowForm(false)} onFlatAdded={fetchFlats} />
+        <AddFlatsForm onClose={() => setShowForm(false)} onFlatAdded={() => fetchFlats(filter)} />
+      )}
+
+      {/* 🆕 Filter Buttons for Admin */}
+      {isAdmin && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+            <button
+              onClick={() => setFilter("all")}
+              style={{
+                backgroundColor: filter === "all" ? "#3b82f6" : "#e5e7eb",
+                color: filter === "all" ? "white" : "black",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontWeight: "500",
+                border: "none",
+                cursor: "pointer",
+                transition: "0.2s",
+              }}
+            >
+              All
+            </button>
+
+            <button
+              onClick={() => setFilter("filled")}
+              style={{
+                backgroundColor: filter === "filled" ? "#16a34a" : "#e5e7eb",
+                color: filter === "filled" ? "white" : "black",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontWeight: "500",
+                border: "none",
+                cursor: "pointer",
+                transition: "0.2s",
+              }}
+            >
+              Filled Flats
+            </button>
+
+            <button
+              onClick={() => setFilter("vacant")}
+              style={{
+                backgroundColor: filter === "vacant" ? "#f59e0b" : "#e5e7eb",
+                color: filter === "vacant" ? "white" : "black",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontWeight: "500",
+                border: "none",
+                cursor: "pointer",
+                transition: "0.2s",
+              }}
+            >
+              Vacant Flats
+            </button>
+          </div>
+
+          {/* 🆕 Summary counts */}
+          <div style={{ textAlign: "center", marginTop: "6px", color: "#374151", fontWeight: "500" }}>
+            <p style={{ margin: 0 }}>
+              Total Flats: {flats.length} |
+              Filled: {flats.filter(f => (f.tenancies || []).length > 0).length} |
+              Vacant: {flats.filter(f => !(f.tenancies || []).length).length}
+            </p>
+          </div>
+        </div>
       )}
 
       <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: "28px", fontWeight: "600", color: "#2c3e50", marginBottom: "20px", textAlign: "center" }}>
@@ -265,6 +390,7 @@ export default function Dashboard() {
                 padding: "15px",
                 boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
                 transition: "transform 0.2s ease",
+                cursor: "pointer",
               }}
               onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
               onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
@@ -283,7 +409,7 @@ export default function Dashboard() {
               {flat.status === "paid" && flat.paid_on && <p>🗓️ Paid On: {new Date(flat.paid_on).toLocaleDateString("en-IN")}</p>}
               {isAdmin && (
                 <button
-                  onClick={() => handleStatusUpdate(flat.flat_id, flat.status)}
+                  onClick={(e) => handleStatusUpdate(e, flat.flat_id, flat.status)}
                   style={{
                     backgroundColor: flat.status === "paid" ? "#f87171" : "#4ade80",
                     color: "#fff",
@@ -304,4 +430,3 @@ export default function Dashboard() {
     </div>
   );
 }
-    
