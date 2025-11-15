@@ -1,236 +1,297 @@
+// pages/tenants/[flat_id].js
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { Dialog } from "@headlessui/react";
 
 export default function TenantDetails() {
   const router = useRouter();
   const { flat_id } = router.query;
-   const [selectedTenant, setSelectedTenant] = useState(null);
-  const [tenantRepairs, setTenantRepairs] = useState([]);
 
   const [flat, setFlat] = useState(null);
   const [tenant, setTenant] = useState(null);
   const [pastTenants, setPastTenants] = useState([]);
   const [repairs, setRepairs] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [userRole, setUserRole] = useState(null); // admin or owner
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // -------------------------
+  // 🔐 Fetch User Role (Admin/Owner)
+  // -------------------------
   useEffect(() => {
-    if (!flat_id) return;
-
-    const fetchDetails = async () => {
-      setLoading(true);
-      const { data: flatData } = await supabase
-        .from("flats")
-        .select("*")
-        .ilike("flat_id", flat_id)
-        .single();
-
-      const { data: tenantData } = await supabase
-        .from("tenancies")
-        .select("*")
-        .ilike("flat_id", flat_id)
-        .eq("is_active", true)
-        .single();
-
-      const { data: oldTenants } = await supabase
-        .from("tenancies")
-        .select("*")
-        .ilike("flat_id", flat_id)
-        .eq("is_active", false)
-        .order("moved_out_on", { ascending: false });
-
-      const { data: repairHistory } = await supabase
-        .from("maintenance")
-        .select("*")
-        .ilike("flat_id", flat_id)
-        .order("reported_at", { ascending: false });
-
-      setFlat(flatData);
-      setTenant(tenantData);
-      setPastTenants(oldTenants || []);
-      setRepairs(repairHistory || []);
-      setLoading(false);
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        const email = data.user.email;
+        setCurrentUser(email);
+        setUserRole(email === "admin@realestate.com" ? "admin" : "owner");
+      }
     };
+    getUser();
+  }, []);
 
-    fetchDetails();
+  // -------------------------
+  // 📄 Fetch Documents
+  // -------------------------
+  const fetchDocuments = async () => {
+    const { data, error } = await supabase
+      .from("rental_documents")
+      .select("*")
+      .eq("flat_id", flat_id)
+      .order("uploaded_at", { ascending: false });
+
+    if (!error) setDocuments(data || []);
+  };
+
+  useEffect(() => {
+    if (flat_id) fetchDocuments();
   }, [flat_id]);
 
-  const fetchTenantRepairs = async (tenancyId) => {
-  const { data, error } = await supabase
-    .from("maintenance")
-    .select("*")
-    .eq("tenancy_id", tenancyId)
-    .order("reported_at", { ascending: false });
-  
-  if (error) console.error("Error fetching tenant maintenance:", error);
-  setTenantRepairs(data || []);
-};
+  // -------------------------
+  // 🏡 Fetch Flat & Tenant Details
+  // -------------------------
+  const fetchDetails = async () => {
+    setLoading(true);
 
-  if (loading) return <p className="text-center text-gray-600 mt-10">Loading flat details...</p>;
+    const { data: flatData } = await supabase
+      .from("flats")
+      .select("*")
+      .eq("flat_id", flat_id)
+      .single();
 
-  if (!flat) return <p className="text-center text-red-500 mt-10">Flat not found.</p>;
+    const { data: activeTenant } = await supabase
+      .from("tenancies")
+      .select("*")
+      .eq("flat_id", flat_id)
+      .eq("is_active", true)
+      .single();
+
+    const { data: oldTenants } = await supabase
+      .from("tenancies")
+      .select("*")
+      .eq("flat_id", flat_id)
+      .eq("is_active", false);
+
+    const { data: maintenanceHistory } = await supabase
+      .from("maintenance")
+      .select("*")
+      .eq("flat_id", flat_id)
+      .order("reported_at", { ascending: false });
+
+    setFlat(flatData);
+    setTenant(activeTenant);
+    setPastTenants(oldTenants || []);
+    setRepairs(maintenanceHistory || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (flat_id) fetchDetails();
+  }, [flat_id]);
+
+  // -------------------------
+  // 📤 File Upload (Admin Only)
+  // -------------------------
+  const handleFileUpload = async (e, type) => {
+    if (userRole !== "admin") return alert("Only admin can upload files.");
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const folder = type === "agreement" ? "rental-agreements" : "rent-screenshots";
+    const month = type === "payment" ? new Date().toISOString().slice(0, 7) : null;
+
+    try {
+      const path = `${folder}/${flat_id}_${Date.now()}_${file.name}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("tenant-docs")
+        .upload(path, file);
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = supabase.storage
+        .from("tenant-docs")
+        .getPublicUrl(path);
+
+      await supabase.from("rental_documents").insert([
+        {
+          flat_id,
+          tenant_id: tenant?.id || null,
+          type,
+          month,
+          file_url: urlData.publicUrl,
+          uploaded_by: currentUser,
+        },
+      ]);
+
+      alert("Uploaded successfully");
+      fetchDocuments();
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    }
+  };
+
+  if (loading)
+    return (
+      <p className="text-center mt-20 text-gray-600 dark:text-gray-300">
+        Loading flat details...
+      </p>
+    );
+
+  if (!flat)
+    return (
+      <p className="text-center mt-20 text-red-500 dark:text-red-400">
+        Flat not found.
+      </p>
+    );
+
+  // ===========================================================
+  // 🔥 UI STARTS HERE — SUPER PROFESSIONAL
+  // ===========================================================
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* 🔙 Back to Dashboard */}
+    <div className="min-h-screen p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition">
+
+      {/* 🔙 Back Button */}
       <button
         onClick={() => router.push("/dashboard")}
-        className="mb-4 text-blue-600 font-semibold hover:underline"
+        className="mb-6 text-blue-600 dark:text-blue-400 hover:underline"
       >
         ← Back to Dashboard
       </button>
 
-      {/* 🏡 Flat Overview */}
-      <div className="bg-white shadow-md rounded-2xl p-6 mb-8 border border-gray-200">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-2">
-          🏡 {flat.apartment_name} ({flat.flat_id})
+      {/* ===========================
+          🏡 FLAT OVERVIEW CARD
+      ============================ */}
+      <div className="card p-6 mb-8">
+        <h1 className="text-2xl font-semibold mb-2">
+          🏡 {flat.apartment_name} — {flat.flat_id}
         </h1>
-        <p className="text-gray-600">💰 Rent: ₹{flat.rent_amount || 0}</p>
-        <p className="text-gray-600">📅 Due Date: {flat.Due_Date || "Not set"}</p>
-        <p className="text-gray-600">📩 Owner: {flat.owner_email}</p>
-      </div>
 
-      {/* 👤 Current Tenant */}
-     <div className="bg-white shadow-md rounded-2xl p-6 mb-8 border border-gray-200">
-  <h2 className="text-xl font-semibold text-gray-800 mb-4">👤 Current Tenant</h2>
-
-  {tenant ? (
-    <div
-      className="grid grid-cols-2 gap-4 cursor-pointer hover:bg-gray-50 rounded-md p-3 transition"
-      onClick={() => {
-        setSelectedTenant(tenant);
-        fetchTenantRepairs(tenant.id);
-      }}
-      title="Click to view maintenance history"
-    >
-      <p><strong>Name:</strong> {tenant.tenant_name}</p>
-      <p><strong>Age:</strong> {tenant.age}</p>
-      <p><strong>Occupation:</strong> {tenant.occupation_type}</p>
-      <p><strong>Family:</strong> {tenant.family_status}</p>
-      {tenant.salary && <p><strong>Salary:</strong> ₹{tenant.salary}</p>}
-      {tenant.gender && <p><strong>Gender:</strong> {tenant.gender}</p>}
-      {tenant.aadhar_url && (
+        <p>💰 Rent: ₹{flat.rent_amount}</p>
         <p>
-          <strong>Aadhaar:</strong>{" "}
-          <a
-            href={tenant.aadhar_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-blue-600 hover:underline"
-          >
-            View File
-          </a>
+          📅 Due Date:{" "}
+          {flat.due_date
+            ? new Date(flat.due_date).toLocaleDateString("en-IN")
+            : "Not Set"}
         </p>
-      )}
-      {tenant.pan_url && (
-        <p>
-          <strong>PAN:</strong>{" "}
-          <a
-            href={tenant.pan_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-blue-600 hover:underline"
-          >
-            View File
-          </a>
-        </p>
-      )}
-    </div>  
-  ) : (
-    <p className="text-gray-600">No active tenant for this flat.</p>
-  )}
-</div>
+        <p>📩 Owner: {flat.owner_email}</p>
 
-      {/* 📜 Previous Tenants */}
-      <div className="bg-white shadow-md rounded-2xl p-6 mb-8 border border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">📜 Tenant History</h2>
-        {pastTenants.length > 0 ? (
-          pastTenants.map((t) => (
-            <div
-              key={t.id}
-              className="border-b border-gray-100 pb-3 mb-3 last:border-none last:mb-0 cursor-pointer hover:bg-gray-50 rounded-md p-2 transition"
-              onClick={() => {
-                setSelectedTenant(t);
-                fetchTenantRepairs(t.id);
-              }}
-            >
-              <p className="font-medium text-gray-800">{t.tenant_name}</p>
-              <p className="text-gray-600 text-sm">
-                Stayed: {t.start_date} → {t.moved_out_on || "N/A"}
-              </p>
-              <p className="text-gray-600 text-sm">
-                Reason for Exit: {t.reason_for_exit || "Not specified"}
-              </p>
-            </div>
-          ))
-        ) : (
-          <p className="text-gray-600">No previous tenants found.</p>
+        {userRole === "admin" && tenant?.email && (
+          <p className="mt-2">
+            📧 Tenant Email:{" "}
+            <span className="font-medium">{tenant.email}</span>
+          </p>
         )}
       </div>
 
-      {/* 🛠️ Maintenance History */}
-      <div className="bg-white shadow-md rounded-2xl p-6 border border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">🛠️ Maintenance & Repairs</h2>
+      {/* ===========================
+          👤 CURRENT TENANT
+      ============================ */}
+      <div className="card p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-4">👤 Current Tenant</h2>
+
+        {tenant ? (
+          <div className="grid grid-cols-2 gap-y-2">
+            <p><strong>Name:</strong> {tenant.tenant_name}</p>
+            <p><strong>Age:</strong> {tenant.age}</p>
+
+            <p><strong>Occupation:</strong> {tenant.occupation_type}</p>
+            {tenant.company_name && (
+              <p><strong>Company:</strong> {tenant.company_name}</p>
+            )}
+            {tenant.business_name && (
+              <p><strong>Business:</strong> {tenant.business_name}</p>
+            )}
+
+            <p><strong>Family Status:</strong> {tenant.family_status}</p>
+
+            {userRole === "admin" && tenant.phone_number && (
+              <p><strong>Phone:</strong> {tenant.phone_number}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-gray-500 dark:text-gray-400">No active tenant.</p>
+        )}
+      </div>
+
+      {/* ===========================
+          🛠️ MAINTENANCE
+      ============================ */}
+      <div className="card p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-4">🛠️ Maintenance History</h2>
+
         {repairs.length > 0 ? (
           repairs.map((r) => (
-            <div
-              key={r.id}
-              className="border-b border-gray-100 pb-3 mb-3 last:border-none last:mb-0"
-            >
-              <p><strong>{r.category}</strong> ({r.severity})</p>
-              <p className="text-gray-600">{r.description}</p>
-              <p className="text-gray-600">Reported: {r.reported_at}</p>
-              <p className="text-gray-600">Resolved: {r.resolved_at || "Pending"}</p>
-              <p className="text-gray-600">Cost: ₹{r.cost || 0}</p>
+            <div key={r.id} className="border-b border-gray-200 dark:border-gray-700 py-3">
+              <p className="font-semibold">{r.category} ({r.severity})</p>
+              <p className="text-gray-600 dark:text-gray-400">{r.description}</p>
+              <p className="text-sm text-gray-500">
+                Reported on {new Date(r.reported_at).toLocaleDateString("en-IN")}
+              </p>
+              <p className="text-sm">Cost: ₹{r.cost || 0}</p>
             </div>
           ))
         ) : (
-          <p className="text-gray-600">No maintenance history for this flat.</p>
+          <p className="text-gray-500 dark:text-gray-400">No maintenance records.</p>
         )}
-        {/* 🪟 Tenant-specific Maintenance Modal */}
-            {selectedTenant && (
-              <Dialog
-                open={true}
-                onClose={() => setSelectedTenant(null)}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
-              >
-                <div className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-2xl relative">
-                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                    🧾 Maintenance for {selectedTenant.tenant_name}
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Duration: {selectedTenant.start_date} → {selectedTenant.moved_out_on || "Ongoing"}
-                  </p>
-
-                  {tenantRepairs.length > 0 ? (
-                    <div className="max-h-80 overflow-y-auto">
-                      {tenantRepairs.map((r) => (
-                        <div key={r.id} className="border-b border-gray-200 pb-2 mb-2">
-                          <p><strong>{r.category}</strong> ({r.severity})</p>
-                          <p className="text-gray-600">{r.description}</p>
-                          <p className="text-gray-500 text-sm">Reported: {r.reported_at}</p>
-                          <p className="text-gray-500 text-sm">
-                            Resolved: {r.resolved_at || "Pending"}
-                          </p>
-                          <p className="text-gray-600">Cost: ₹{r.cost || 0}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">No maintenance records for this tenant.</p>
-                  )}
-
-                  <button
-                    className="absolute top-3 right-4 text-gray-500 hover:text-red-500"
-                    onClick={() => setSelectedTenant(null)}
-                  >
-                    ✖
-                  </button>
-                </div>
-              </Dialog>
-            )}
       </div>
+
+      {/* ===========================
+          📁 DOCUMENTS
+      ============================ */}
+      <div className="card p-6">
+        <h2 className="text-xl font-semibold mb-4">📁 Rental Documents</h2>
+
+        {userRole === "admin" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block mb-1 font-medium">Upload Agreement:</label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => handleFileUpload(e, "agreement")}
+                className="w-full border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium">Upload Payment Proof:</label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => handleFileUpload(e, "payment")}
+                className="w-full border p-2 rounded bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
+              />
+            </div>
+          </div>
+        )}
+
+        {documents.length > 0 ? (
+          <ul className="list-disc ml-6">
+            {documents.map((doc) => (
+              <li key={doc.id} className="mb-2">
+                <strong className="mr-2">
+                  {doc.type === "agreement" ? "📄 Agreement" : `💵 Payment (${doc.month})`}
+                </strong>
+                <a
+                  href={doc.file_url}
+                  target="_blank"
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  View / Download
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500 dark:text-gray-400">No documents uploaded.</p>
+        )}
+      </div>
+
     </div>
   );
 }

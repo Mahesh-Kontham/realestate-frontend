@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/router";
 
@@ -6,21 +6,27 @@ export default function AddTenant() {
   const [formData, setFormData] = useState({
     flat_id: "",
     tenant_name: "",
+    tenant_email: "",
+    phone_number: "",
     occupation_type: "",
     company_name: "",
+    business_name: "",
     family_status: "",
+    family_members: "",
     gender: "",
     age: "",
     deposit_amount: "",
     aadharFile: null,
     panFile: null,
-    offerLetterFile: null, // 🆕 Added for offer letter / company ID
+    offerLetterFile: null,
   });
 
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
 
-  // ✅ Handle input change
+  // -------------------------
+  // Handle Input Change
+  // -------------------------
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     setFormData({
@@ -29,80 +35,92 @@ export default function AddTenant() {
     });
   };
 
-  // ✅ Upload file to Supabase Storage bucket → tenant-docs/{folder}
+  // -------------------------
+  // Upload File → Supabase
+  // -------------------------
   const uploadFile = async (file, folder) => {
+    if (!file) return null;
+
     try {
       const filePath = `${folder}/${Date.now()}_${file.name}`;
-
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from("tenant-docs")
         .upload(filePath, file);
 
       if (error) throw error;
 
+      // Get public URL
       const {
         data: { publicUrl },
       } = supabase.storage.from("tenant-docs").getPublicUrl(filePath);
 
-      console.log(`✅ Uploaded ${folder} file:`, publicUrl);
       return publicUrl;
     } catch (err) {
-      console.error("❌ Upload failed:", err.message);
-      alert(`Upload failed: ${err.message}`);
+      console.error("❌ Upload Error:", err.message);
+      alert("Failed to upload file.");
       return null;
     }
   };
 
-  // ✅ Handle Submit
+  // -------------------------
+  // Handle Submit
+  // -------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.flat_id || !formData.tenant_name || !formData.deposit_amount) {
-      alert("⚠️ Please fill all required fields including deposit amount.");
+      alert("⚠️ Please fill all required fields.");
       return;
     }
 
-    // 🧠 Validation for “Working” tenants
     if (formData.occupation_type === "Working" && !formData.offerLetterFile) {
-      alert("⚠️ Please upload an Offer Letter or Company ID for Working tenants.");
+      alert("⚠️ Offer Letter / Company ID required for working professionals.");
       return;
     }
 
     setUploading(true);
-    let aadharUrl = null;
-    let panUrl = null;
-    let offerLetterUrl = null;
 
-    try {
-      if (formData.aadharFile)
-        aadharUrl = await uploadFile(formData.aadharFile, "aadhar");
-      if (formData.panFile)
-        panUrl = await uploadFile(formData.panFile, "pan");
-      if (formData.offerLetterFile)
-        offerLetterUrl = await uploadFile(formData.offerLetterFile, "work-docs"); // 🆕 Folder for working docs
-    } catch (err) {
-      console.error("❌ File upload error:", err);
-      alert("File upload failed!");
-      setUploading(false);
-      return;
-    }
+    // Upload files
+    const aadharUrl = await uploadFile(formData.aadharFile, "aadhar");
+    const panUrl = await uploadFile(formData.panFile, "pan");
+    const offerLetterUrl = await uploadFile(
+      formData.offerLetterFile,
+      "work-docs"
+    );
 
-    // ✅ Insert into Supabase
-    const { data, error } = await supabase.from("tenancies").insert([
+    // Insert to Supabase
+    const { error } = await supabase.from("tenancies").insert([
       {
         flat_id: formData.flat_id,
         tenant_name: formData.tenant_name,
+        tenant_email: formData.tenant_email,
+        phone_number: formData.phone_number,
+
         occupation_type: formData.occupation_type,
         company_name:
-          formData.occupation_type === "Working" ? formData.company_name : null,
+          formData.occupation_type === "Working"
+            ? formData.company_name
+            : null,
+        business_name:
+          formData.occupation_type === "Business"
+            ? formData.business_name
+            : null,
+
         family_status: formData.family_status,
+        family_members:
+          formData.family_status === "Family"
+            ? formData.family_members
+            : null,
         gender:
           formData.family_status === "Bachelors" ? formData.gender : null,
+
         age: formData.age,
         deposit_amount: formData.deposit_amount,
+
         aadhar_url: aadharUrl,
         pan_url: panUrl,
-        offer_letter_url: offerLetterUrl, // 🆕 saved in DB
+        offer_letter_url: offerLetterUrl,
+
         start_date: new Date().toISOString(),
         is_active: true,
       },
@@ -111,7 +129,7 @@ export default function AddTenant() {
     setUploading(false);
 
     if (error) {
-      console.error("❌ Supabase error:", error);
+      console.error("❌ Error:", error);
       alert("Failed to add tenant.");
     } else {
       alert("✅ Tenant added successfully!");
@@ -119,11 +137,62 @@ export default function AddTenant() {
     }
   };
 
+  // -------------------------
+  // STYLES (same as your pattern)
+  // -------------------------
+  const styles = {
+    container:
+    {
+      maxWidth: "500px",
+      margin: "50px auto",
+      padding: "24px",
+      border: "1px solid #ddd",
+      borderRadius: "12px",
+      backgroundColor: "white"
+    },
+    heading: {
+      textAlign: "center",
+      marginBottom: "20px",
+      fontWeight: "600",
+      fontSize: "22px",
+    },
+    form: { display: "flex", flexDirection: "column", gap: "14px" },
+    input: { padding: "10px", border: "1px solid #ccc", borderRadius: "6px" },
+    select: { padding: "10px", border: "1px solid #ccc", borderRadius: "6px" },
+    fileInput: { border: "1px solid #ccc", padding: "8px", borderRadius: "6px" },
+    button: {
+      marginTop: "10px",
+      backgroundColor: "#22c55e",
+      color: "#fff",
+      padding: "12px",
+      fontSize: "15px",
+      border: "none",
+      borderRadius: "8px",
+      cursor: "pointer",
+    },
+    backBtn: {
+      marginTop: "15px",
+      backgroundColor: "#2563eb",
+      color: "#fff",
+      padding: "10px",
+      fontSize: "15px",
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer",
+    },
+  };
+
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>➕ Add Tenant</h2>
+    <div
+      style={styles.container}
+      className="dark:bg-gray-800 dark:text-white"
+    >
+      <h2 style={styles.heading} className="dark:text-white">
+        Add Tenant
+      </h2>
 
       <form onSubmit={handleSubmit} style={styles.form}>
+        {/* Flat ID */}
         <input
           type="text"
           name="flat_id"
@@ -132,8 +201,10 @@ export default function AddTenant() {
           onChange={handleChange}
           required
           style={styles.input}
+          className="dark:bg-gray-700 dark:border-gray-500"
         />
 
+        {/* Tenant Name */}
         <input
           type="text"
           name="tenant_name"
@@ -142,57 +213,85 @@ export default function AddTenant() {
           onChange={handleChange}
           required
           style={styles.input}
+          className="dark:bg-gray-700 dark:border-gray-500"
         />
 
+        {/* Phone */}
+        <input
+          type="text"
+          name="phone_number"
+          placeholder="📞 Phone Number"
+          maxLength="10"
+          value={formData.phone_number}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              phone_number: e.target.value.replace(/\D/g, ""),
+            })
+          }
+          required
+          style={styles.input}
+          className="dark:bg-gray-700 dark:border-gray-500"
+        />
+
+        {/* Email */}
+        <input
+          type="email"
+          name="tenant_email"
+          placeholder="📧 Email Address"
+          value={formData.tenant_email}
+          onChange={handleChange}
+          required
+          style={styles.input}
+          className="dark:bg-gray-700 dark:border-gray-500"
+        />
+
+        {/* Age */}
         <input
           type="number"
           name="age"
           placeholder="Age"
           value={formData.age}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (value >= 0) setFormData({ ...formData, age: value });
-          }}
-          onKeyDown={(e) => {
-            if (["-", "+"].includes(e.key)) e.preventDefault();
-          }}
-          min="1"
+          onChange={(e) =>
+            e.target.value >= 1 &&
+            setFormData({ ...formData, age: e.target.value })
+          }
           required
           style={styles.input}
+          className="dark:bg-gray-700 dark:border-gray-500"
         />
 
+        {/* Deposit */}
         <input
           type="number"
           name="deposit_amount"
           placeholder="💰 Deposit Amount"
           value={formData.deposit_amount}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (value >= 0) setFormData({ ...formData, deposit_amount: value });
-          }}
-          onKeyDown={(e) => {
-            if (["-", "+"].includes(e.key)) e.preventDefault();
-          }}
-          min="1"
+          onChange={(e) =>
+            e.target.value >= 0 &&
+            setFormData({ ...formData, deposit_amount: e.target.value })
+          }
           required
           style={styles.input}
+          className="dark:bg-gray-700 dark:border-gray-500"
         />
 
-        {/* Occupation Dropdown */}
-        <label>Occupation:</label>
+        {/* Occupation */}
+        <label className="dark:text-gray-300">Occupation</label>
         <select
           name="occupation_type"
           value={formData.occupation_type}
           onChange={handleChange}
           required
           style={styles.select}
+          className="dark:bg-gray-700 dark:border-gray-500"
         >
           <option value="">Select Occupation</option>
           <option value="Working">Working</option>
           <option value="Business">Business</option>
         </select>
 
-        {/* Company details and Offer Letter */}
+        {/* Working */}
         {formData.occupation_type === "Working" && (
           <>
             <input
@@ -201,37 +300,71 @@ export default function AddTenant() {
               placeholder="Company Name"
               value={formData.company_name}
               onChange={handleChange}
-              style={styles.input}
               required
+              style={styles.input}
+              className="dark:bg-gray-700 dark:border-gray-500"
             />
 
-            <label>Upload Offer Letter or Company ID:</label>
+            <label className="dark:text-gray-300">Offer Letter / ID</label>
             <input
               type="file"
               name="offerLetterFile"
               accept="image/*,.pdf"
               onChange={handleChange}
-              style={styles.fileInput}
               required
+              style={styles.fileInput}
+              className="dark:bg-gray-700 dark:border-gray-500"
             />
           </>
         )}
 
-        {/* Family/Bachelors */}
-        <label>Family / Bachelors:</label>
+        {/* Business */}
+        {formData.occupation_type === "Business" && (
+          <input
+            type="text"
+            name="business_name"
+            placeholder="Business Name"
+            value={formData.business_name}
+            onChange={handleChange}
+            required
+            style={styles.input}
+            className="dark:bg-gray-700 dark:border-gray-500"
+          />
+        )}
+
+        {/* Family / Bachelors */}
+        <label className="dark:text-gray-300">Family / Bachelors</label>
         <select
           name="family_status"
           value={formData.family_status}
           onChange={handleChange}
           required
           style={styles.select}
+          className="dark:bg-gray-700 dark:border-gray-500"
         >
           <option value="">Select Type</option>
           <option value="Family">Family</option>
           <option value="Bachelors">Bachelors</option>
         </select>
 
-        {/* Gender (only for Bachelors) */}
+        {/* Family Members */}
+        {formData.family_status === "Family" && (
+          <input
+            type="number"
+            name="family_members"
+            placeholder="Number of Family Members"
+            value={formData.family_members}
+            onChange={(e) =>
+              e.target.value >= 1 &&
+              setFormData({ ...formData, family_members: e.target.value })
+            }
+            required
+            style={styles.input}
+            className="dark:bg-gray-700 dark:border-gray-500"
+          />
+        )}
+
+        {/* Gender */}
         {formData.family_status === "Bachelors" && (
           <select
             name="gender"
@@ -239,95 +372,55 @@ export default function AddTenant() {
             onChange={handleChange}
             required
             style={styles.select}
+            className="dark:bg-gray-700 dark:border-gray-500"
           >
             <option value="">Select Gender</option>
-            <option value="Men">Men</option>
-            <option value="Women">Women</option>
+            <option value="Men">Male</option>
+            <option value="Women">Female</option>
           </select>
         )}
 
-        {/* File Uploads */}
-        <label>Aadhaar Upload:</label>
+        {/* Aadhar */}
+        <label className="dark:text-gray-300">Aadhaar Upload</label>
         <input
           type="file"
           name="aadharFile"
           accept="image/*,.pdf"
           onChange={handleChange}
           style={styles.fileInput}
+          className="dark:bg-gray-700 dark:border-gray-500"
         />
 
-        <label>PAN Upload:</label>
+        {/* PAN */}
+        <label className="dark:text-gray-300">PAN Upload</label>
         <input
           type="file"
           name="panFile"
           accept="image/*,.pdf"
           onChange={handleChange}
           style={styles.fileInput}
+          className="dark:bg-gray-700 dark:border-gray-500"
         />
 
-        <button type="submit" style={styles.button} disabled={uploading}>
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={uploading}
+          style={styles.button}
+          className="dark:bg-green-600"
+        >
           {uploading ? "Uploading..." : "Add Tenant"}
         </button>
       </form>
 
-      <button style={styles.backBtn} onClick={() => router.push("/dashboard")}>
+      {/* Back btn */}
+      <button
+        onClick={() => router.push("/dashboard")}
+        style={styles.backBtn}
+        className="dark:bg-blue-700"
+      >
         🔙 Back to Dashboard
       </button>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: "500px",
-    margin: "50px auto",
-    padding: "20px",
-    border: "1px solid #ddd",
-    borderRadius: "10px",
-    backgroundColor: "#f8fafc",
-  },
-  heading: {
-    textAlign: "center",
-    marginBottom: "20px",
-    fontWeight: "600",
-    color: "#2c3e50",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-  input: {
-    padding: "10px",
-    border: "1px solid #ccc",
-    borderRadius: "6px",
-  },
-  select: {
-    padding: "10px",
-    border: "1px solid #ccc",
-    borderRadius: "6px",
-  },
-  fileInput: {
-    border: "1px solid #ccc",
-    padding: "8px",
-    borderRadius: "6px",
-  },
-  button: {
-    marginTop: "10px",
-    backgroundColor: "#22c55e",
-    color: "#fff",
-    padding: "10px",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  backBtn: {
-    marginTop: "15px",
-    backgroundColor: "#2563eb",
-    color: "#fff",
-    padding: "8px 12px",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-};

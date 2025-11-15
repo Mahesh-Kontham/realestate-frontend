@@ -48,7 +48,7 @@ const flat = {
   apartment_name: formData.apartment_name,
   FlatNumber: formData.FlatNumber ? Number(formData.FlatNumber) : null,
   rent_amount: formData.rent_amount,
-  owner_email: user.email,
+  owner_email:  formData.owner_email,
   due_date: formData.due_date,
   
 };
@@ -66,59 +66,76 @@ const flat = {
     if (onFlatAdded) onFlatAdded(flat);
 
     // ✅ Step 4: Sync to Google Sheet via Edge Function
-    const { data: { session } } = await supabase.auth.getSession();
-    try {
-      const response = await fetch(
-        "https://rsqvusfanywhzqryzqck.supabase.co/functions/v1/google-sheet",
-        {
-          method: "POST",
-         headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-    },
-          body: JSON.stringify({
-            table: "flats",
-            data: {
-              apartment_name: formData.apartment_name,
-              FlatNumber: formData.FlatNumber,
-              owner_email: user.email,
-              rent_amount: formData.rent_amount,
-              due_date: formData.due_date,
-            },
-          }),
-        }
-      );
+    // const { data: { session } } = await supabase.auth.getSession();
+    // try {
+    //   const response = await fetch(
+    //     "https://rsqvusfanywhzqryzqck.supabase.co/functions/v1/google-sheet",
+    //     {
+    //       method: "POST",
+    //      headers: {
+    //   "Content-Type": "application/json",
+    //   Authorization: `Bearer ${session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+    // },
+    //       body: JSON.stringify({
+    //         table: "flats",
+    //         data: {
+    //           apartment_name: formData.apartment_name,
+    //           FlatNumber: formData.FlatNumber,
+    //           owner_email: user.email,
+    //           rent_amount: formData.rent_amount,
+    //           due_date: formData.due_date,
+    //         },
+    //       }),
+    //     }
+    //   );
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("Error syncing to Google Sheet:", errText);
-        alert("⚠️ Flat added but failed to sync with Google Sheet.");
-        return;
-      }
+    //   if (!response.ok) {
+    //     const errText = await response.text();
+    //     console.error("Error syncing to Google Sheet:", errText);
+    //     alert("⚠️ Flat added but failed to sync with Google Sheet.");
+    //     return;
+    //   }
 
-      alert("✅ Flat added successfully and synced to Google Sheet!");
-      onClose();
-    } catch (err) {
-      console.error("❌ Network error:", err);
-      alert("Network error while syncing with Google Sheet.");
-    }
+    //   alert("✅ Flat added successfully and synced to Google Sheet!");
+    //   onClose();
+    // } catch (err) {
+    //   console.error("❌ Network error:", err);
+    //   alert("Network error while syncing with Google Sheet.");
+    // }
   };
+return (
+  <div className={styles.modalOverlay + " dark:bg-black/40"}>
+    <div
+      className={
+        styles.modal +
+        " dark:bg-gray-800 dark:text-gray-100 transition-all duration-200"
+      }
+    >
+      <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">
+         Add New Flat
+      </h3>
 
-  return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modal}>
-        <h3>Add New Flat</h3>
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+        {/* Apartment Name */}
+        <div>
+          <label className="text-sm font-medium dark:text-gray-300">
+            Apartment Name
+          </label>
           <input
             name="apartment_name"
-            placeholder="Apartment Name"
+            placeholder="Enter Apartment Name"
             onChange={handleChange}
             value={formData.apartment_name}
+            className="w-full mt-1 p-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            required
           />
-                  <label
-            htmlFor="FlatNumber"
-            style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}
-          >
+        </div>
+
+        {/* Flat Number */}
+        <div>
+          <label className="text-sm font-medium dark:text-gray-300">
+            Flat Number
           </label>
           <input
             type="number"
@@ -127,52 +144,80 @@ const flat = {
             placeholder="Enter Flat Number (e.g., 101)"
             value={formData.FlatNumber || ""}
             onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, ""); // allow digits only
+              const value = e.target.value.replace(/\D/g, "");
               setFormData({ ...formData, FlatNumber: value });
             }}
-            style={{
-              width: "100%",
-              padding: "0px",
-              border: "1px solid #ccc",
-              borderRadius: "0px",
-              fontSize: "16px",
-              marginBottom: "15px",
-            }}
+            className="w-full mt-1 p-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             required
           />
+        </div>
 
-
+        {/* Owner Email */}
+        <div>
+          <label className="text-sm font-medium dark:text-gray-300">
+            Owner Email
+          </label>
           <input
-            name="owner_email"
             type="email"
-            placeholder="Owner Email"
-            onChange={handleChange}
+            name="owner_email"
+            placeholder="Owner Email Address"
             value={formData.owner_email}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 p-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           />
+        </div>
 
+        {/* Rent */}
+        <div>
+          <label className="text-sm font-medium dark:text-gray-300">
+            Rent Amount (₹)
+          </label>
           <input
             name="rent_amount"
             type="number"
-            placeholder="Rent Amount"
+            placeholder="Enter Rent Amount"
             onChange={handleChange}
             value={formData.rent_amount}
+            className="w-full mt-1 p-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           />
+        </div>
+
+        {/* Due Date */}
+        <div>
+          <label className="text-sm font-medium dark:text-gray-300">
+            Rent Due Date
+          </label>
           <input
             name="due_date"
             type="date"
-            placeholder="Due Date"
             onChange={handleChange}
             value={formData.due_date}
+            className="w-full mt-1 p-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           />
+        </div>
 
-          <div className={styles.modalButtons}>
-            <button type="submit">Save</button>
-            <button type="button" onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Buttons */}
+        <div className="flex justify-end gap-3 mt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+          >
+            Save Flat
+          </button>
+        </div>
+      </form>
     </div>
-  );
+  </div>
+);
+
+
 }

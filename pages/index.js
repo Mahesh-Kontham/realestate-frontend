@@ -1,76 +1,99 @@
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
-import { createClient } from '@supabase/supabase-js';
 
-export const Access = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-export default function Login(){
-  const[email,setEmail]=useState("");
-  const[password,setPassword]= useState("");
   const router = useRouter();
 
-   const handlelogin=async()=>{
-       if(!email || !password){
-        alert("Please Enter Email and Password")
-        return;
-       }
-        const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-     });
-      if (error) {
-      alert("Login failed: " + error.message);
-    } else {
-      alert("Login successful!");
-      localStorage.setItem("userEmail", email);
-      router.push("/dashboard");
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
     }
 
-   }
+    setLoading(true);
 
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  return(
-      
-  <div className="flex items-center justify-center h-screen bg-gray-100">
-    <div className="bg-white p-8 rounded-2xl shadow-md w-96">
-      <h1 className="text-2xl font-bold text-center mb-6">Login</h1>
+    setLoading(false);
 
-      <input
-        type="email"
-        placeholder="Enter your email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-      />
+    if (error) {
+      alert("Login failed: " + error.message);
+      return;
+    }
 
-      <input
-        type="password"
-        placeholder="Enter your password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="w-full p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-      />
+    // Save email so Dashboard can detect Owner/Admin
+    localStorage.setItem("userEmail", email);
 
-      <button
-        onClick={handlelogin}
-        className="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition"
-      >
-        Sign In
-      </button>
-          <p style={{ textAlign: "center", marginTop: "10px" }}>
-              Don't have an account?{" "}
-          <a href="/signup" style={{ color: "#007bff", cursor: "pointer" }}>
-             Sign Up
-      </a>
-    </p>
+    alert("Login successful!");
+    router.push("/dashboard");
+  };
 
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors duration-300 px-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+
+        {/* Title */}
+        <h1 className="text-3xl font-bold text-center mb-6 text-gray-800 dark:text-white">
+          Welcome Back 👋
+        </h1>
+
+        {/* Email Input */}
+        <input
+          type="email"
+          placeholder="Email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 mb-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none transition"
+        />
+
+        {/* Password Input */}
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 mb-6 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none transition"
+        />
+
+        {/* Login Button */}
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className={`w-full p-3 rounded-lg font-medium text-white transition ${
+            loading
+              ? "bg-blue-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          }`}
+        >
+          {loading ? "Signing in..." : "Sign In"}
+        </button>
+
+        {/* Divider */}
+        <div className="flex items-center my-6">
+          <div className="flex-grow h-px bg-gray-300 dark:bg-gray-600"></div>
+          <span className="text-gray-500 dark:text-gray-400 mx-3 text-sm">or</span>
+          <div className="flex-grow h-px bg-gray-300 dark:bg-gray-600"></div>
+        </div>
+
+        {/* Signup Link */}
+        <p className="text-center text-gray-600 dark:text-gray-300">
+          Don’t have an account?{" "}
+          <span
+            onClick={() => router.push("/signup")}
+            className="text-blue-600 dark:text-blue-400 font-medium cursor-pointer hover:underline"
+          >
+            Create one
+          </span>
+        </p>
+      </div>
     </div>
-  </div>
-);
-
- 
+  );
 }

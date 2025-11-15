@@ -212,221 +212,152 @@ export default function Dashboard() {
     }
   };
 
-  return (
-    <div className="dashboard" style={{ padding: "20px" }}>
-      {/* 🔝 Navbar */}
-      <div className="navbar">
-        {isAdmin && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "10px", marginBottom: "20px" }}>
-            {/* ➕ Add Flat + Tenant */}
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                className="add-btn"
-                onClick={() => setShowForm(true)}
-                style={{
-                  backgroundColor: "#22c55e",
-                  color: "white",
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                ➕ Add Flat
-              </button>
+return (
+  <div className="space-y-8">
 
-              <Link
-                href="/tenants/add"
-                style={{
-                  backgroundColor: "#3b82f6",
-                  color: "white",
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  textDecoration: "none",
-                  fontWeight: "500",
-                }}
-              >
-                ➕ Add Tenant
-              </Link>
-            </div>
+    {/* ===== TOP ACTION BUTTONS ===== */}
+    {isAdmin && (
+      <div className="flex flex-wrap gap-4 items-center">
+        <button
+          onClick={() => setShowForm(true)}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700"
+        >
+          Add Flat
+        </button>
 
-            <Link
-              href="/tenants/TenantExitWizard"
-              style={{
-                backgroundColor: "#f97316",
-                color: "white",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                fontSize: "14px",
-                textDecoration: "none",
-                fontWeight: "500",
-              }}
-            >
-              🔚 Tenant Exit Wizard
-            </Link>
-          </div>
-        )}
+        <Link
+          href="/tenants/add"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700"
+        >
+           Add Tenant
+        </Link>
+
+        <Link
+          href="/tenants/TenantExitWizard"
+          className="px-4 py-2 bg-orange-600 text-white rounded-lg shadow-sm hover:bg-orange-700"
+        >
+         Tenant Exit Wizard
+        </Link>
       </div>
+    )}
 
-      {/* 🧑‍💻 Role Display */}
-      {user && (
-        <p style={{ textAlign: "right", margin: "10px 0", fontWeight: "bold", color: isAdmin ? "#2563eb" : "#16a34a" }}>
-          Logged in as {user.email} ({isAdmin ? "Admin" : "Owner"})
-        </p>
-      )}
+    {/* USER INFO */}
+    {user && (
+      <p className="text-right text-sm font-semibold text-blue-600 dark:text-blue-400">
+        Logged in as {user.email} ({isAdmin ? "Admin" : "Owner"})
+      </p>
+    )}
 
-      {/* 🔍 Search Bar */}
-      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "center" }}>
-        <input
-          type="text"
-          placeholder="🔍 Search by Flat ID, Apartment Name, or Tenant..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{
-            width: "70%",
-            padding: "10px 15px",
-            borderRadius: "10px",
-            border: "1px solid #ccc",
-            fontSize: "16px",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-            outline: "none",
-            transition: "0.2s ease",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-          onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-        />
-      </div>
-
-      {/* Add Flat Form */}
-      {isAdmin && showForm && (
-        <AddFlatsForm onClose={() => setShowForm(false)} onFlatAdded={() => fetchFlats(filter)} />
-      )}
-
-      {/* 🆕 Filter Buttons for Admin */}
-      {isAdmin && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
-            <button
-              onClick={() => setFilter("all")}
-              style={{
-                backgroundColor: filter === "all" ? "#3b82f6" : "#e5e7eb",
-                color: filter === "all" ? "white" : "black",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                fontWeight: "500",
-                border: "none",
-                cursor: "pointer",
-                transition: "0.2s",
-              }}
-            >
-              All
-            </button>
-
-            <button
-              onClick={() => setFilter("filled")}
-              style={{
-                backgroundColor: filter === "filled" ? "#16a34a" : "#e5e7eb",
-                color: filter === "filled" ? "white" : "black",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                fontWeight: "500",
-                border: "none",
-                cursor: "pointer",
-                transition: "0.2s",
-              }}
-            >
-              Filled Flats
-            </button>
-
-            <button
-              onClick={() => setFilter("vacant")}
-              style={{
-                backgroundColor: filter === "vacant" ? "#f59e0b" : "#e5e7eb",
-                color: filter === "vacant" ? "white" : "black",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                fontWeight: "500",
-                border: "none",
-                cursor: "pointer",
-                transition: "0.2s",
-              }}
-            >
-              Vacant Flats
-            </button>
-          </div>
-
-          {/* 🆕 Summary counts */}
-          <div style={{ textAlign: "center", marginTop: "6px", color: "#374151", fontWeight: "500" }}>
-            <p style={{ margin: 0 }}>
-              Total Flats: {flats.length} |
-              Filled: {flats.filter(f => (f.tenancies || []).length > 0).length} |
-              Vacant: {flats.filter(f => !(f.tenancies || []).length).length}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: "28px", fontWeight: "600", color: "#2c3e50", marginBottom: "20px", textAlign: "center" }}>
-        🏠 Available Flats
-      </h2>
-
-      {/* Flats Grid */}
-      {loading ? (
-        <p>Loading flats...</p>
-      ) : filteredFlats.length === 0 ? (
-        <p>No flats found for "{searchQuery}".</p>
-      ) : (
-        <div className="flats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "20px" }}>
-          {filteredFlats.map((flat) => (
-            <div
-              key={flat.flat_id}
-              className="flat-card"
-              style={{
-                background: "#fff",
-                borderRadius: "12px",
-                padding: "15px",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-                transition: "transform 0.2s ease",
-                cursor: "pointer",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
-              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
-              onClick={() => router.push(`/tenants/${flat.flat_id}`)}
-            >
-              <h3 style={{ marginBottom: "8px", color: "#111827" }}>{flat.apartment_name}</h3>
-              <p>🏠 Flat Number: {flat.flat_id || "—"}</p>
-              <p>💰 Rent: ₹{flat.rent_amount || 0}</p>
-              <p>📅 Due Date: {flat.due_date ? new Date(flat.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</p>
-              <p>
-                🟢 Status:
-                <span style={{ color: flat.status === "paid" ? "green" : "red", fontWeight: "bold", marginLeft: "5px" }}>
-                  {flat.status || "unpaid"}
-                </span>
-              </p>
-              {flat.status === "paid" && flat.paid_on && <p>🗓️ Paid On: {new Date(flat.paid_on).toLocaleDateString("en-IN")}</p>}
-              {isAdmin && (
-                <button
-                  onClick={(e) => handleStatusUpdate(e, flat.flat_id, flat.status)}
-                  style={{
-                    backgroundColor: flat.status === "paid" ? "#f87171" : "#4ade80",
-                    color: "#fff",
-                    border: "none",
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    marginTop: "8px",
-                  }}
-                >
-                  {flat.status === "paid" ? "Mark Unpaid" : "Mark Paid"}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+    {/* SEARCH */}
+    <div className="flex justify-center">
+      <input
+        type="text"
+        placeholder="🔍 Search by Flat ID, Apartment Name, or Tenant..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full md:w-2/3 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 
+                   bg-white dark:bg-gray-800 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+      />
     </div>
-  );
+
+    {/* ADD FLAT FORM */}
+    {isAdmin && showForm && (
+      <AddFlatsForm onClose={() => setShowForm(false)} onFlatAdded={() => fetchFlats(filter)} />
+    )}
+
+    {/* FILTERS */}
+    {isAdmin && (
+      <div className="space-y-2 text-center">
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-4 py-2 rounded-lg shadow 
+              ${filter === "all" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
+          >
+            All
+          </button>
+
+          <button
+            onClick={() => setFilter("filled")}
+            className={`px-4 py-2 rounded-lg shadow 
+              ${filter === "filled" ? "bg-green-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
+          >
+            Filled Flats
+          </button>
+
+          <button
+            onClick={() => setFilter("vacant")}
+            className={`px-4 py-2 rounded-lg shadow 
+              ${filter === "vacant" ? "bg-yellow-500 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
+          >
+            Vacant Flats
+          </button>
+        </div>
+
+        {/* COUNTS */}
+        <p className="text-gray-700 dark:text-gray-300 font-medium">
+          Total Flats: {flats.length} |
+          Filled: {flats.filter(f => (f.tenancies || []).length > 0).length} |
+          Vacant: {flats.filter(f => !(f.tenancies || []).length).length}
+        </p>
+      </div>
+    )}
+
+    {/* ====== SECTION TITLE ====== */}
+    <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white flex items-center justify-center gap-2">
+      🏠 Available Flats
+    </h2>
+
+    {/* ===== FLATS GRID ===== */}
+    {loading ? (
+      <p className="text-center text-gray-500 dark:text-gray-400">Loading flats...</p>
+    ) : filteredFlats.length === 0 ? (
+      <p className="text-center text-gray-600 dark:text-gray-300">
+        No flats found for "{searchQuery}"
+      </p>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredFlats.map((flat) => (
+          <div
+            key={flat.flat_id}
+            onClick={() => router.push(`/tenants/${flat.flat_id}`)}
+            className="p-6 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
+                       shadow hover:shadow-lg transform hover:-translate-y-1 transition cursor-pointer"
+          >
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              {flat.apartment_name}
+            </h3>
+
+            <p className="text-gray-700 dark:text-gray-300">🏠 Flat Number: {flat.flat_id}</p>
+            <p className="text-gray-700 dark:text-gray-300">💰 Rent: ₹{flat.rent_amount}</p>
+            <p className="text-gray-700 dark:text-gray-300">📅 Due Date: {flat.due_date ? new Date(flat.due_date).toLocaleDateString("en-IN") : "—"}</p>
+
+            <p className="text-gray-700 dark:text-gray-300">
+              🟢 Status:
+              <span className={`font-semibold ml-1 ${flat.status === "paid" ? "text-green-500" : "text-red-500"}`}>
+                {flat.status}
+              </span>
+            </p>
+
+            {isAdmin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusUpdate(e, flat.flat_id, flat.status);
+                }}
+                className={`mt-3 w-full px-4 py-2 rounded-lg text-white 
+                  ${flat.status === "paid" ? "bg-red-500" : "bg-green-600"}`}
+              >
+                {flat.status === "paid" ? "Mark Unpaid" : "Mark Paid"}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+ 
+
 }
