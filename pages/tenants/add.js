@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/router";
 
@@ -19,7 +19,24 @@ export default function AddTenant() {
     aadharFile: null,
     panFile: null,
     offerLetterFile: null,
+
   });
+
+  const [flatOptions, setFlatOptions] = useState([]);
+
+useEffect(() => {
+  const loadFlats = async () => {
+    const { data, error } = await supabase
+      .from("flats")
+      .select("flat_id, apartment_name")
+      .order("flat_id");
+
+    if (!error) setFlatOptions(data);
+  };
+
+  loadFlats();
+}, []);
+
 
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
@@ -65,31 +82,21 @@ export default function AddTenant() {
   // -------------------------
   // Handle Submit
   // -------------------------
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!formData.flat_id || !formData.tenant_name || !formData.deposit_amount) {
-      alert("⚠️ Please fill all required fields.");
-      return;
-    }
+  setUploading(true);
+  // -------------------------------
+  // 2️⃣ Upload Aadhar, PAN, Offer Letter
+  // -------------------------------
+  const aadharUrl = await uploadFile(formData.aadharFile, "aadhar");
+  const panUrl = await uploadFile(formData.panFile, "pan");
+  const offerLetterUrl = await uploadFile(formData.offerLetterFile, "work-docs");
 
-    if (formData.occupation_type === "Working" && !formData.offerLetterFile) {
-      alert("⚠️ Offer Letter / Company ID required for working professionals.");
-      return;
-    }
-
-    setUploading(true);
-
-    // Upload files
-    const aadharUrl = await uploadFile(formData.aadharFile, "aadhar");
-    const panUrl = await uploadFile(formData.panFile, "pan");
-    const offerLetterUrl = await uploadFile(
-      formData.offerLetterFile,
-      "work-docs"
-    );
-
-    // Insert to Supabase
-    const { error } = await supabase.from("tenancies").insert([
+  // -------------------------------
+  // 3️⃣ FINAL INSERT (AFTER pdfUrl is ready)
+  // -------------------------------
+   const { error } = await supabase.from("tenancies").insert([
       {
         flat_id: formData.flat_id,
         tenant_name: formData.tenant_name,
@@ -137,6 +144,8 @@ export default function AddTenant() {
     }
   };
 
+
+
   // -------------------------
   // STYLES (same as your pattern)
   // -------------------------
@@ -155,6 +164,7 @@ export default function AddTenant() {
       marginBottom: "20px",
       fontWeight: "600",
       fontSize: "22px",
+  
     },
     form: { display: "flex", flexDirection: "column", gap: "14px" },
     input: { padding: "10px", border: "1px solid #ccc", borderRadius: "6px" },
@@ -188,21 +198,28 @@ export default function AddTenant() {
       className="dark:bg-gray-800 dark:text-white"
     >
       <h2 style={styles.heading} className="dark:text-white">
-        Add Tenant
+        Add Tenant  
       </h2>
 
       <form onSubmit={handleSubmit} style={styles.form}>
         {/* Flat ID */}
-        <input
-          type="text"
+        <label className="dark:text-gray-300">Select Flat</label>
+        <select
           name="flat_id"
-          placeholder="Flat ID (e.g. sunshine-101)"
           value={formData.flat_id}
           onChange={handleChange}
           required
-          style={styles.input}
-          className="dark:bg-gray-700 dark:border-gray-500"
-        />
+          className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-500 dark:text-white"
+        >
+          <option value="">-- Select Flat --</option>
+
+          {flatOptions.map((flat) => (
+            <option key={flat.flat_id} value={flat.flat_id}>
+              {flat.apartment_name} — {flat.flat_id}
+            </option>
+          ))}
+        </select>
+
 
         {/* Tenant Name */}
         <input

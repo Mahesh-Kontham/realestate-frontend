@@ -65,46 +65,9 @@ const flat = {
     alert("✅ Flat added successfully!");
     if (onFlatAdded) onFlatAdded(flat);
 
-    // ✅ Step 4: Sync to Google Sheet via Edge Function
-    // const { data: { session } } = await supabase.auth.getSession();
-    // try {
-    //   const response = await fetch(
-    //     "https://rsqvusfanywhzqryzqck.supabase.co/functions/v1/google-sheet",
-    //     {
-    //       method: "POST",
-    //      headers: {
-    //   "Content-Type": "application/json",
-    //   Authorization: `Bearer ${session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-    // },
-    //       body: JSON.stringify({
-    //         table: "flats",
-    //         data: {
-    //           apartment_name: formData.apartment_name,
-    //           FlatNumber: formData.FlatNumber,
-    //           owner_email: user.email,
-    //           rent_amount: formData.rent_amount,
-    //           due_date: formData.due_date,
-    //         },
-    //       }),
-    //     }
-    //   );
-
-    //   if (!response.ok) {
-    //     const errText = await response.text();
-    //     console.error("Error syncing to Google Sheet:", errText);
-    //     alert("⚠️ Flat added but failed to sync with Google Sheet.");
-    //     return;
-    //   }
-
-    //   alert("✅ Flat added successfully and synced to Google Sheet!");
-    //   onClose();
-    // } catch (err) {
-    //   console.error("❌ Network error:", err);
-    //   alert("Network error while syncing with Google Sheet.");
-    // }
   };
 return (
-  <div className={styles.modalOverlay + " dark:bg-black/40"}>
+  <div className={styles.modalOverlay + " dark:bg-black/40 z-50"}>
     <div
       className={
         styles.modal +
