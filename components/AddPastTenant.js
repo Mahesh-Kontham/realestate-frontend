@@ -21,54 +21,101 @@ export default function AddPastTenant({ flatId, onClose, onSuccess }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async () => {
-    if (!form.flat_id) {
-      alert("⚠️ Flat ID is required");
+const handleSubmit = async () => {
+  if (!form.flat_id) {
+    alert("⚠️ Flat ID is required");
+    return;
+  }
+  
+
+  let pdfUrl = null;
+
+  // 1️⃣ Upload PDF FIRST (correct order)
+  if (form.pdfFile) {
+    const fileName = `previous_tenants/${form.flat_id}_${Date.now()}.pdf`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from("tenant-docs")
+      .upload(fileName, form.pdfFile);
+
+    if (uploadErr) {
+      console.error("Upload failed:", uploadErr);
+      alert("Failed to upload PDF");
       return;
     }
 
-    const { error } = await supabase.from("tenancies").insert([
-      {
-        flat_id: form.flat_id,
-        tenant_name: form.tenant_name,
-        start_date: form.start_date,
-        end_date: form.end_date,
-        reason_for_exit: form.reason_for_exit,
-        deposit_amount: Number(form.deposit_amount),
-        is_active: false,
-         pdf_url: pdfUrl,
-        pdf_uploaded_at: new Date().toISOString(),
-      }
-    ]);
+    const { data: urlData } = supabase.storage
+      .from("tenant-docs")
+      .getPublicUrl(fileName);
 
-    if (error) {
-      alert("❌ Failed to add tenant");
-      console.error(error);
-    } else {
-      alert("✅ Past tenant added successfully!");
-      onSuccess();
-      onClose();
+    pdfUrl = urlData.publicUrl;
+  }
+
+  // 2️⃣ Insert AFTER pdfUrl is created
+  const { error } = await supabase.from("tenancies").insert([
+    {
+      flat_id: form.flat_id,
+      tenant_name: form.tenant_name,
+      start_date: form.start_date,
+      end_date: form.end_date,
+      reason_for_exit: form.reason_for_exit,
+      deposit_amount: Number(form.deposit_amount),
+      is_active: false,
+      pdf_url: pdfUrl,                     // now safe
+      pdf_uploaded_at: pdfUrl ? new Date().toISOString() : null,
     }
-          let pdfUrl = null;
+  ]);
 
-      if (form.pdfFile) {
-        const fileName = `previous_tenants/${flatId}_${Date.now()}.pdf`;
-
-        const { error: uploadErr } = await supabase.storage
-          .from("tenant-docs")
-          .upload(fileName, form.pdfFile);
-
-        if (uploadErr) {
-          console.error("Upload failed:", uploadErr);
-        } else {
-          const { data: urlData } = supabase.storage
-            .from("tenant-docs")
-            .getPublicUrl(fileName);
-
-          pdfUrl = urlData.publicUrl;
-        }
-}
-
+  if (error) {
+    alert("❌ Failed to add tenant");
+    console.error(error);
+  } else {
+    alert("✅ Past tenant added successfully!");
+    onSuccess();
+    onClose();
+  }
+};
+ const styles = {
+    container:
+    {
+      maxWidth: "500px",
+      margin: "50px auto",
+      padding: "24px",
+      border: "1px solid #ddd",
+      borderRadius: "12px",
+      backgroundColor: "white"
+    },
+    heading: {
+      textAlign: "center",
+      marginBottom: "20px",
+      fontWeight: "600",
+      fontSize: "22px",
+  
+    },
+    form: { display: "flex", flexDirection: "column", gap: "14px" },
+    input: { padding: "10px", border: "1px solid #ccc", borderRadius: "6px" },
+    select: { padding: "10px", border: "1px solid #ccc", borderRadius: "6px" },
+    fileInput: { border: "1px solid #ccc", padding: "8px", borderRadius: "6px" },
+    button: {
+      marginTop: "10px",
+      backgroundColor: "#22c55e",
+      color: "#fff",
+      padding: "12px",
+      fontSize: "15px",
+      border: "none",
+      borderRadius: "8px",
+      cursor: "pointer",
+    },
+    backBtn: {
+      marginTop: "15px",
+      backgroundColor: "#2563eb",
+      color: "#fff",
+      padding: "10px",
+      fontSize: "15px",
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer",
+    },
   };
 
   return (
@@ -149,20 +196,102 @@ export default function AddPastTenant({ flatId, onClose, onSuccess }) {
         </div>
 
         {/* Occupation */}
-        <div>
-          <label className="text-sm font-medium dark:text-gray-300">
-            Occupation
-          </label>
+          {/* Occupation */}
+        <label className="dark:text-gray-300">Occupation</label>
+        <select
+          name="occupation_type"
+          value={form.occupation_type}
+          onChange={handleChange}
+          required
+          style={styles.select}
+          className="dark:bg-gray-700 dark:border-gray-500"
+        >
+          <option value="">Select Occupation</option>
+          <option value="Working">Working</option>
+          <option value="Business">Business</option>
+        </select>
+
+        {form.occupation_type === "Working" && (
+          <>
+            <input
+              type="text"
+              name="company_name"
+              placeholder="Company Name"
+              value={form.company_name}
+              onChange={handleChange}
+              required
+              style={styles.input}
+              className="dark:bg-gray-700 dark:border-gray-500"
+            />
+
+            <label className="dark:text-gray-300">Offer Letter / ID</label>
+            <input
+              type="file"
+              name="offerLetterFile"
+              accept="image/*,.pdf"
+              onChange={handleChange}
+              required
+              style={styles.fileInput}
+              className="dark:bg-gray-700 dark:border-gray-500"
+            />
+          </>
+        )}
+        {form.occupation_type === "Business" && (
           <input
             type="text"
-            name="occupation_type"
-            placeholder="Engineer, Student, Business..."
-            value={form.occupation_type || ""}
+            name="business_name"
+            placeholder="Business Name"
+            value={form.business_name}
             onChange={handleChange}
-            className="w-full mt-1 p-2 border rounded-lg bg-white 
-                       dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            required
+            style={styles.input}
+            className="dark:bg-gray-700 dark:border-gray-500"
           />
-        </div>
+        )}
+           <label className="dark:text-gray-300">Family / Bachelors</label>
+        <select
+          name="family_status"
+          value={form.family_status}
+          onChange={handleChange}
+          required
+          style={styles.select}
+          className="dark:bg-gray-700 dark:border-gray-500"
+        >
+          <option value="">Select Type</option>
+          <option value="Family">Family</option>
+          <option value="Bachelors">Bachelors</option>
+        </select>
+
+        {/* Family Members */}
+        {form.family_status === "Family" && (
+          <input
+            type="number"
+            name="family_members"
+            placeholder="Number of Family Members"
+            value={form.family_members}
+            onChange={(e) =>
+              e.target.value >= 1 &&
+              setForm({ ...form, family_members: e.target.value })
+            }
+            required
+            style={styles.input}
+            className="dark:bg-gray-700 dark:border-gray-500"
+          />
+        )}
+        {form.family_status === "Bachelors" && (
+          <select
+            name="gender"
+            value={form.gender}
+            onChange={handleChange}
+            required
+            style={styles.select}
+            className="dark:bg-gray-700 dark:border-gray-500"
+          >
+            <option value="">Select Gender</option>
+            <option value="Men">Male</option>
+            <option value="Women">Female</option>
+          </select>
+        )}
 
         {/* Start Date */}
         <div>

@@ -252,14 +252,18 @@ export default function TenantExitWizard() {
                     value={d.reason}
                     onChange={(e) => updateDeduction(i, "reason", e.target.value)}
                   />
-                  <input
-                    className="border p-2 w-32 rounded dark:bg-gray-800 dark:text-white"
-                    placeholder="Amount"
-                    type="number"
-                    min="0"
-                    value={d.amount}
-                    onChange={(e) => updateDeduction(i, "amount", e.target.value)}
-                  />
+                            <input
+            className="border p-2 w-32 rounded dark:bg-gray-800 dark:text-white 
+                      [-moz-appearance:textfield] 
+                      [&::-webkit-outer-spin-button]:appearance-none 
+                      [&::-webkit-inner-spin-button]:appearance-none"
+            placeholder="Amount"
+            type="number"
+            min="0"
+            value={d.amount}
+            onChange={(e) => updateDeduction(i, 'amount', e.target.value)}
+          />
+
                 </div>
               ))}
 

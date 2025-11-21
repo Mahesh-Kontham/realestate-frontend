@@ -37,9 +37,10 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard">
-        <h1 className="text-2xl font-bold text-black   cursor-pointer hover:underline">
-              Dashboard
-            </h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white cursor-pointer hover:underline">
+      Dashboard
+    </h1>
+
           </Link>
           {/* <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2">
             <MagnifyingGlassIcon className="w-4 h-4 text-gray-600 dark:text-gray-300" />

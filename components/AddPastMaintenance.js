@@ -8,7 +8,8 @@ export default function AddPastMaintenance({ onClose, flatId, tenantId, onSucces
     category: "",
     description: "",
     severity: "",
-    cost: ""
+    cost: "",
+    otherCategory: "",
   });
   const handleChange = (e) => {
   setForm({
@@ -32,12 +33,14 @@ export default function AddPastMaintenance({ onClose, flatId, tenantId, onSucces
       alert("⚠ Please select a Flat.");
       return;
     }
+    const finalCategory =
+    form.category === "Other" ? form.otherCategory : form.category;
 
     const { error } = await supabase.from("maintenance").insert([
       {
         flat_id: selectedFlatId,       // SELECTED FLAT
         tenancy_id: tenantId || null,
-        category: form.category,
+        category: finalCategory,
         description: form.description,
         severity: form.severity,
         cost: Number(form.cost),
@@ -101,8 +104,16 @@ export default function AddPastMaintenance({ onClose, flatId, tenantId, onSucces
           <option value="Security">Security</option>
           <option value="Other">Other</option>
         </select>
-
-
+                {form.category === "Other" && (
+          <input
+            name="otherCategory"
+            value={form.otherCategory}
+            onChange={handleChange}
+            placeholder="Enter category"
+            className="w-full p-2 border rounded mb-3 dark:bg-gray-700 dark:text-white"
+            required
+          />
+)}
         {/* DESCRIPTION */}
         <textarea
           className="w-full p-2 border rounded mb-3 dark:bg-gray-700 dark:text-white"
@@ -125,12 +136,17 @@ export default function AddPastMaintenance({ onClose, flatId, tenantId, onSucces
 
         {/* COST */}
         <input
-          type="number"
-          className="w-full p-2 border rounded mb-4 dark:bg-gray-700 dark:text-white"
-          placeholder="Cost"
-          value={form.cost}
-          onChange={(e) => setForm({ ...form, cost: e.target.value })}
-        />
+            type="number"
+            className="w-full p-2 border rounded mb-4 dark:bg-gray-700 dark:text-white
+                      [-moz-appearance:textfield]
+                      [&::-webkit-inner-spin-button]:appearance-none
+                      [&::-webkit-outer-spin-button]:appearance-none"
+            placeholder="Cost"
+            value={form.cost}
+            onChange={(e) => setForm({ ...form, cost: e.target.value })}
+            min="0"
+            inputMode="numeric"
+          />
 
         {/* BUTTONS */}
         <div className="flex justify-end gap-3">

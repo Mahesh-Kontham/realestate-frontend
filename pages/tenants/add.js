@@ -197,9 +197,11 @@ useEffect(() => {
       style={styles.container}
       className="dark:bg-gray-800 dark:text-white"
     >
-      <h2 style={styles.heading} className="dark:text-white">
-        Add Tenant  
-      </h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-red text-center mb-2">
+        Add Tenant
+        </h2>
+
+
 
       <form onSubmit={handleSubmit} style={styles.form}>
         {/* Flat ID */}

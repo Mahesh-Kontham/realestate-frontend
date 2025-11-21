@@ -7,6 +7,7 @@ import AddPastTenantModal from "../components/AddPastTenant";
 import AddPastMaintenanceModal from "../components/AddPastMaintenance";
 import PaymentProofModal from "../components/PaymentProofModal";
 import EditFlatModal from "../components/EditFlatModal";
+import AddTenantModal from "./tenants/AddTenantModal";
 
 
 export default function Dashboard() {
@@ -25,11 +26,10 @@ export default function Dashboard() {
   const [selectedPaymentFlat, setSelectedPaymentFlat] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFlat, setEditFlat] = useState(null);
-
-
+ const [showAddTenant, setShowAddTenant] = useState(false);
 
   const router = useRouter();
-
+  const activeFilter = router.query.filter || "all";
   const fetchDetails = () => fetchFlats(filter);
 
   // FETCH USER
@@ -94,8 +94,9 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchFlats(filter);
-  }, [filter]);
+  const urlFilter = router.query.filter || "all";
+  fetchFlats(urlFilter);
+}, [router.query.filter]);
 
   // SEARCH
   useEffect(() => {
@@ -187,12 +188,12 @@ export default function Dashboard() {
             Add Flat
           </button>
 
-          <Link
-            href="/tenants/add"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700"
-          >
-            Add Tenant
-          </Link>
+              <button
+                onClick={() => setShowAddTenant(true)}
+                className="bg-blue-600 px-4 py-2 text-white rounded-lg"
+              >
+                 Add Tenant
+              </button>
 
           <Link
             href="/tenants/TenantExitWizard"
@@ -260,32 +261,38 @@ export default function Dashboard() {
       {isAdmin && (
         <div className="space-y-2 text-center">
           <div className="flex justify-center gap-4">
-            <button
-              onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-lg shadow ${
-                filter === "all" ? "bg-blue-600 text-white" : " bg-red-500"
-              }`}
-            >
-              All
-            </button>
+                                <button
+                  onClick={() => router.push("?filter=all")}
+                  className={`px-4 py-2 rounded 
+                    ${activeFilter === "all"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 dark:text-white"
+                    }`}
+                >
+                  All
+                </button>
 
-            <button
-              onClick={() => setFilter("filled")}
-              className={`px-4 py-2 rounded-lg shadow ${
-                filter === "filled" ? "bg-blue-600 text-white" : "bg-red-500"
-              }`}
-            >
-              Filled Flats
-            </button>
+                <button
+                  onClick={() => router.push("?filter=filled")}
+                  className={`px-4 py-2 rounded 
+                    ${activeFilter === "filled"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 dark:text-white"
+                    }`}
+                >
+                  Filled
+                </button>
 
-            <button
-              onClick={() => setFilter("vacant")}
-              className={`px-4 py-2 rounded-lg shadow ${
-                filter === "vacant" ? "bg-blue-500 text-white" : "bg-red-500"
-              }`}
-            >
-              Vacant Flats
-            </button>
+                <button
+                  onClick={() => router.push("?filter=vacant")}
+                  className={`px-4 py-2 rounded 
+                    ${activeFilter === "vacant"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 dark:text-white"
+                    }`}
+                >
+                  Vacant
+                </button> 
           </div>
 
           {/* COUNTS */}
@@ -298,7 +305,7 @@ export default function Dashboard() {
       )}
 
       {/* SECTION TITLE */}
-      <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white">🏠 Available Flats</h2>
+      <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white"> Available Flats</h2>
 
       {/* ===== FLATS GRID ===== */}
       {loading ? (
@@ -320,15 +327,15 @@ export default function Dashboard() {
                 {flat.apartment_name}
               </h3>
 
-              <p className="text-gray-800 dark:text-white">🏠 Flat Number: {flat.flat_id}</p>
-              <p className="text-gray-800 dark:text-white">💰 Rent: ₹{flat.rent_amount}</p>
+              <p className="text-gray-800 dark:text-white"> Flat Number: {flat.flat_id}</p>
+              <p className="text-gray-800 dark:text-white"> Rent: ₹{flat.rent_amount}</p>
               <p className="text-gray-800 dark:text-white">
-                📅 Due Date:{" "}
+                Due Date:{" "}
                 {flat.due_date ? new Date(flat.due_date).toLocaleDateString("en-IN") : "—"}
               </p>
 
               <p className="text-gray-800 dark:text-white">
-                🟢 Status:{" "}
+                Status:{" "}
                 <span
                   className={`font-semibold ${
                     flat.status === "paid" ? "text-green-500" : "text-red-500"
@@ -422,6 +429,13 @@ export default function Dashboard() {
           onSuccess={() => fetchFlats(filter)}
         />
       )}
+         <AddTenantModal
+        open={showAddTenant}
+        onClose={() => setShowAddTenant(false)}
+        onSuccess={fetchDetails}
+      />
+
+
 
 
     </div>

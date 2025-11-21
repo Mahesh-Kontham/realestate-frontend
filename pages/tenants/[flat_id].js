@@ -52,6 +52,7 @@ const [docToDelete, setDocToDelete] = useState(null);
 const [showDeleteDocModal, setShowDeleteDocModal] = useState(false);
 
 
+
 const openEditPastTenantModal = (tenant) => {
   setSelectedPastTenant(tenant);
   setShowEditModal(true);
@@ -88,13 +89,10 @@ const openEditDocumentModal = (doc) => {
   setShowEditDocModal(true);
 };
 
-const openDeleteDocumentModal = (id) => {
-  setDocToDelete(id);
+const openDeleteDocumentModal = (doc) => {
+  setDocToDelete(doc);   // store full row object
   setShowDeleteDocModal(true);
 };
-
-
-
 
   // -------------------------
   // 🔐 Fetch User Role (Admin/Owner)
@@ -112,7 +110,7 @@ const openDeleteDocumentModal = (id) => {
   }, []);
 
   // -------------------------
-  // 📄 Fetch Documents
+  // 📄 Fetch Documents 
   // -------------------------
   const fetchDocuments = async () => {
     const { data, error } = await supabase
@@ -125,8 +123,8 @@ const openDeleteDocumentModal = (id) => {
   };
 
   useEffect(() => {
-    if (flat_id) fetchDocuments();
-  }, [flat_id]);
+  if (flat_id) fetchDocuments();
+}, [flat_id, fetchDocuments]);
 
   // -------------------------
   // 🏡 Fetch Flat & Tenant & Past Tenants & Maintenance
@@ -301,7 +299,8 @@ if (maintenanceError) {
   )}
 
   {/* Tenant Details */}
-  {tenant ? (
+ {tenant ? (
+  <>
     <div className="grid grid-cols-2 gap-y-2">
 
       <p><strong>Name:</strong> {tenant.tenant_name}</p>
@@ -326,8 +325,57 @@ if (maintenanceError) {
       {userRole === "admin" && tenant.tenant_email && (
         <p><strong>Email:</strong> {tenant.tenant_email}</p>
       )}
+
     </div>
-  ) : (
+
+    {/* ✅ ID Proofs MUST be outside grid */}
+    {userRole === "admin" && (
+      <div className="mt-4 p-4 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+
+        <h3 className="text-lg font-semibold dark:text-white mb-2">ID Proofs</h3>
+
+        {/* Aadhaar */}
+        <div className="mb-2">
+          <p className="font-medium dark:text-gray-300">Aadhaar:</p>
+          {tenant?.aadhar_url ? (
+            <button
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+              onClick={() => {
+                console.log("Opening Aadhaar →", tenant.aadhar_url);
+                setSelectedDoc(tenant.aadhar_url);
+                
+
+              }}
+            >
+              View Aadhaar
+            </button>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400">Not uploaded</p>
+          )}
+        </div>
+
+        {/* PAN */}
+        <div>
+          <p className="font-medium dark:text-gray-300">PAN:</p>
+          {tenant?.pan_url ? (
+            <button
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+              onClick={() => {
+                console.log("Opening PAN →", tenant.pan_url);
+                setSelectedDocument(tenant.pan_url);
+              }}
+            >
+              View PAN
+            </button>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400">Not uploaded</p>
+          )}
+        </div>
+
+      </div>
+    )}
+  </>
+):(
     <p className="text-gray-500 dark:text-gray-400">No active tenant.</p>
   )}
 </div>
@@ -396,6 +444,8 @@ if (maintenanceError) {
         <button
           className="text-blue-600 dark:text-blue-300 hover:underline"
           onClick={(e) => {
+            console.log("Opening document preview → ", t.pdf_url);
+
             e.stopPropagation();
             setSelectedDoc(t.pdf_url);
             setShowDocumentModal(true);
@@ -420,6 +470,7 @@ if (maintenanceError) {
 
       </div>
     )}
+    
 
   </div>
 ))}
@@ -601,7 +652,7 @@ if (maintenanceError) {
         )}
 
         {/* Documents List */}
-           <ul className="list-none space-y-4">
+    <ul key={documents.length} className="list-none space-y-4">
   {documents.map((doc) => (
     <li
       key={doc.id}
@@ -612,12 +663,14 @@ if (maintenanceError) {
         <div className="absolute top-3 right-3 flex gap-4 z-20">
           <PencilIcon
             className="w-5 h-5 text-blue-500 dark:text-blue-300 cursor-pointer hover:scale-110 transition"
-            onClick={() => openEditDocumentModal(doc)}
+            onClick={() => {
+               console.log("DOCUMENT BEING DELETED:", doc);
+              openEditDocumentModal(doc)}}
           />
 
           <TrashIcon
             className="w-5 h-5 text-red-500 dark:text-red-300 cursor-pointer hover:scale-110 transition"
-            onClick={() => openDeleteDocumentModal(doc.id)}
+            onClick={() => openDeleteDocumentModal(doc)}
           />
         </div>
       )}
@@ -694,7 +747,11 @@ if (maintenanceError) {
                  <p><strong>Occupation:</strong> {selectedPastTenant.occupation_type || "—"}</p>
                 <p><strong>Company:</strong> {selectedPastTenant.company_name || "—"}</p>
                 <p><strong>Business:</strong> {selectedPastTenant.business_name || "—"}</p>
-                <p><strong>Phone:</strong> {selectedPastTenant.phone_number || "—"}</p>
+                {userRole === "admin" && (
+                  <p>
+                    <strong>Phone:</strong> {selectedPastTenant.phone_number || "—"}
+                  </p>
+                )}
 
                 <p>
                   <strong>Period:</strong>{" "}
@@ -745,8 +802,7 @@ if (maintenanceError) {
   }}
   onSuccess={() => fetchDetails()}
 />
-
-     <DeleteMaintenanceModal
+<DeleteMaintenanceModal
   open={showDeleteMaintenanceModal}
   id={maintenanceToDelete}
   onClose={() => {
@@ -776,22 +832,20 @@ if (maintenanceError) {
   onClose={() => setShowEditDocModal(false)}
   onSuccess={() => fetchDocuments()}
 />
-
 <DeleteDocumentModal
   open={showDeleteDocModal}
-  id={docToDelete}
+  id={docToDelete?.id}
+  fileUrl={docToDelete?.file_url} // <-- USE YOUR COLUMN NAME HERE
   onClose={() => setShowDeleteDocModal(false)}
-  onSuccess={() => fetchDocuments()}
+  onSuccess={fetchDocuments}
 />
-
 {selectedDoc && (
   <DocumentViewerModal
+    open={!!selectedDoc}
     fileUrl={selectedDoc}
     onClose={() => setSelectedDoc(null)}
   />
 )}
-
-
  </div>
  
   );
